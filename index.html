@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Formulario Firebase</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Formulario de Contacto</h1>
+  <form id="contactForm">
+    <input type="text" id="name" placeholder="Nombre" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="text" id="message" placeholder="Mensaje" required>
+    <button type="submit">Enviar</button>
+  </form>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- Tu configuración -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
+      authDomain: "novedades-5257f.firebaseapp.com",
+      projectId: "novedades-5257f",
+      storageBucket: "novedades-5257f.firebasestorage.app",
+      messagingSenderId: "562100000903",
+      appId: "1:562100000903:web:aba04199c4abb1ee37c022"
+    };
+
+    // Inicializar Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Guardar datos al enviar
+    document.getElementById('contactForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const data = {
+        nombre: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        mensaje: document.getElementById('message').value,
+        fecha: new Date().toISOString()
+      };
+      db.ref('contactos').push(data)
+        .then(() => {
+          alert('¡Datos enviados!');
+          e.target.reset();
+        })
+        .catch(err => alert('Error: ' + err));
+    });
+  </script>
+</body>
+</html>
