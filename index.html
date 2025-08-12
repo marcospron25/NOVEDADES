@@ -8,21 +8,39 @@
 <body>
   <h1>Registro de Novedades</h1>
 
-  <!-- === FORMULARIO DE NOVEDADES === -->
+  <!-- === FORMULARIO === -->
   <form id="novedadForm">
-    <input type="text" id="codigo"   placeholder="Código (6 dígitos)" maxlength="6" required pattern="\d{6}">
+    <input type="text" id="codigo" placeholder="Código (6 dígitos)" maxlength="6" required pattern="\d{6}">
     <select id="tipo" required>
-      <option value="">-- Elija novedad --</option>
-      <option>Robo</option>
-      <option>Pérdida</option>
-      <option>Daño</option>
-      <option>Otro</option>
+      <option value="">-- Seleccione novedad --</option>
+      <option>NO VISITA DE EJECUTIVO</option>
+      <option>NO HAY DEVOLUCIONES</option>
+      <option>NO HAY CAMBIOS DE PRODUCTOS</option>
+      <option>CUPO LIMITADO</option>
+      <option>CLIENTE BLOQUEADO</option>
+      <option>SIN CREDITO</option>
+      <option>PROBLEMA EN FRECUENCIA DE LLAMADA</option>
+      <option>PROBLEMAS CON DESCUENTOS</option>
+      <option>BAJA ROTACION</option>
+      <option>NEGOCIO CERRADO</option>
+      <option>COMPRA A LA COMPETENCIA</option>
+      <option>PROBLEMAS CON LOGISTICA</option>
+      <option>PROBLEMAS DE INSUFICIENCIA</option>
+      <option>EJECUTIVO NO ENCUENTRA AL CLIENTE</option>
+      <option>TIENE OTRO CODIGO</option>
+      <option>PEDIDOS SIN CONSENTIMIENTO</option>
+      <option>POR VACACIONES</option>
+      <option>CLIENTE CERRADO TOTALMENTE</option>
+      <option>DELINCUENCIA (EXTORSION, VACUNAS, SECUESTROS)</option>
+      <option>COMPARTE CODIGO</option>
+      <option>COMPRA CADA 15 DIAS (O 1 VEZ AL MES)</option>
+      <option>CIERRE TEMPORAL (TEMA PERSONAL DEL CLIENTE)</option>
+      <option>NO CONTACTO (TELEFONO INCORRECTO)</option>
     </select>
     <input type="text" id="detalle" placeholder="Detalle" required>
     <button type="submit">Guardar Novedad</button>
   </form>
 
-  <!-- === DESCARGA CON CONTRASEÑA === -->
   <hr>
   <h2>Descargar Reporte</h2>
   <input type="password" id="clave" placeholder="Contraseña">
@@ -31,11 +49,10 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <!-- Librería para generar Excel -->
+  <!-- Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <script>
-    // === CONFIGURACIÓN FIREBASE (usa la tuya) ===
     const firebaseConfig = {
       apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
       authDomain: "novedades-5257f.firebaseapp.com",
@@ -47,7 +64,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // === GUARDAR NOVEDAD ===
+    // Guardar novedad
     document.getElementById('novedadForm').addEventListener('submit', e => {
       e.preventDefault();
       const data = {
@@ -57,28 +74,19 @@
         fecha:   new Date().toLocaleString('es-AR')
       };
       db.ref('novedades').push(data)
-        .then(() => {
-          alert('Novedad guardada');
-          e.target.reset();
-        })
+        .then(() => { alert('Novedad guardada'); e.target.reset(); })
         .catch(err => alert('Error: ' + err));
     });
 
-    // === DESCARGAR EXCEL CON CONTRASEÑA ===
+    // Descargar Excel
     document.getElementById('descBtn').addEventListener('click', () => {
       const clave = document.getElementById('clave').value;
-      if (clave !== '123456') {           // <-- Cambia la contraseña aquí
-        alert('Contraseña incorrecta');
-        return;
-      }
+      if (clave !== '123456') { alert('Contraseña incorrecta'); return; }
       db.ref('novedades').once('value', snap => {
-        const registros = [];
-        snap.forEach(child => registros.push(child.val()));
-        if (!registros.length) {
-          alert('No hay novedades registradas');
-          return;
-        }
-        const ws = XLSX.utils.json_to_sheet(registros);
+        const regs = [];
+        snap.forEach(c => regs.push(c.val()));
+        if (!regs.length) { alert('Sin datos'); return; }
+        const ws = XLSX.utils.json_to_sheet(regs);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Novedades');
         XLSX.writeFile(wb, 'reporte_novedades.xlsx');
