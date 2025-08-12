@@ -2,24 +2,40 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Formulario Firebase</title>
+  <title>Registro de Novedades</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Formulario de Contacto</h1>
-  <form id="contactForm">
-    <input type="text" id="name" placeholder="Nombre" required>
-    <input type="email" id="email" placeholder="Email" required>
-    <input type="text" id="message" placeholder="Mensaje" required>
-    <button type="submit">Enviar</button>
+  <h1>Registro de Novedades</h1>
+
+  <!-- === FORMULARIO DE NOVEDADES === -->
+  <form id="novedadForm">
+    <input type="text" id="codigo"   placeholder="Código (6 dígitos)" maxlength="6" required pattern="\d{6}">
+    <select id="tipo" required>
+      <option value="">-- Elija novedad --</option>
+      <option>Robo</option>
+      <option>Pérdida</option>
+      <option>Daño</option>
+      <option>Otro</option>
+    </select>
+    <input type="text" id="detalle" placeholder="Detalle" required>
+    <button type="submit">Guardar Novedad</button>
   </form>
 
-  <!-- Firebase SDK (compat) -->
+  <!-- === DESCARGA CON CONTRASEÑA === -->
+  <hr>
+  <h2>Descargar Reporte</h2>
+  <input type="password" id="clave" placeholder="Contraseña">
+  <button id="descBtn">Descargar Excel</button>
+
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- Librería para generar Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-  <!-- Tu configuración -->
   <script>
+    // === CONFIGURACIÓN FIREBASE (usa la tuya) ===
     const firebaseConfig = {
       apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
       authDomain: "novedades-5257f.firebaseapp.com",
@@ -28,26 +44,45 @@
       messagingSenderId: "562100000903",
       appId: "1:562100000903:web:aba04199c4abb1ee37c022"
     };
-
-    // Inicializar Firebase
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Guardar datos al enviar
-    document.getElementById('contactForm').addEventListener('submit', e => {
+    // === GUARDAR NOVEDAD ===
+    document.getElementById('novedadForm').addEventListener('submit', e => {
       e.preventDefault();
       const data = {
-        nombre: document.getElementById('name').value,
-        email: document.getElementById('email').value,
-        mensaje: document.getElementById('message').value,
-        fecha: new Date().toISOString()
+        codigo:  document.getElementById('codigo').value,
+        tipo:    document.getElementById('tipo').value,
+        detalle: document.getElementById('detalle').value,
+        fecha:   new Date().toLocaleString('es-AR')
       };
-      db.ref('contactos').push(data)
+      db.ref('novedades').push(data)
         .then(() => {
-          alert('¡Datos enviados!');
+          alert('Novedad guardada');
           e.target.reset();
         })
         .catch(err => alert('Error: ' + err));
+    });
+
+    // === DESCARGAR EXCEL CON CONTRASEÑA ===
+    document.getElementById('descBtn').addEventListener('click', () => {
+      const clave = document.getElementById('clave').value;
+      if (clave !== '123456') {           // <-- Cambia la contraseña aquí
+        alert('Contraseña incorrecta');
+        return;
+      }
+      db.ref('novedades').once('value', snap => {
+        const registros = [];
+        snap.forEach(child => registros.push(child.val()));
+        if (!registros.length) {
+          alert('No hay novedades registradas');
+          return;
+        }
+        const ws = XLSX.utils.json_to_sheet(registros);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Novedades');
+        XLSX.writeFile(wb, 'reporte_novedades.xlsx');
+      });
     });
   </script>
 </body>
