@@ -8,7 +8,7 @@
 <body>
   <h1>Registro de Novedades</h1>
 
-  <!-- === FORMULARIO DE NOVEDAD === -->
+  <!-- === FORMULARIO === -->
   <form id="novedadForm">
     <input type="text" id="codigo" placeholder="Código (6 dígitos)" maxlength="6" required pattern="\d{6}">
     <select id="tipo" required>
@@ -75,7 +75,7 @@
         codigo:  document.getElementById('codigo').value,
         tipo:    document.getElementById('tipo').value,
         detalle: document.getElementById('detalle').value,
-        fecha:   new Date().toLocaleDateString('es-AR') // Solo fecha
+        fecha:   new Date().toISOString().slice(0, 10) // YYYY-MM-DD
       };
       db.ref('novedades').push(data)
         .then(() => { alert('Novedad guardada'); e.target.reset(); })
@@ -96,15 +96,11 @@
         return;
       }
 
-      // Convertir fecha seleccionada al formato local
-      const fechaFormateada = new Date(fechaSeleccionada).toLocaleDateString('es-AR');
-
       db.ref('novedades').once('value', snap => {
         const registros = [];
         snap.forEach(child => {
-          const reg = child.val();
-          if (reg.fecha === fechaFormateada) {
-            registros.push(reg);
+          if (child.val().fecha === fechaSeleccionada) {
+            registros.push(child.val());
           }
         });
 
