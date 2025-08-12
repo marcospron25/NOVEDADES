@@ -8,7 +8,7 @@
 <body>
   <h1>Registro de Novedades</h1>
 
-  <!-- === FORMULARIO === -->
+  <!-- === FORMULARIO DE NOVEDAD === -->
   <form id="novedadForm">
     <input type="text" id="codigo" placeholder="Código (6 dígitos)" maxlength="6" required pattern="\d{6}">
     <select id="tipo" required>
@@ -42,7 +42,10 @@
   </form>
 
   <hr>
-  <h2>Descargar Reporte</h2>
+
+  <!-- === FILTRO Y DESCARGA === -->
+  <h2>Descargar Reporte por Fecha</h2>
+  <input type="date" id="fechaFiltro" required>
   <input type="password" id="clave" placeholder="Contraseña">
   <button id="descBtn">Descargar Excel</button>
 
@@ -53,6 +56,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <script>
+    // === CONFIGURACIÓN FIREBASE ===
     const firebaseConfig = {
       apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
       authDomain: "novedades-5257f.firebaseapp.com",
@@ -64,32 +68,55 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Guardar novedad
+    // === GUARDAR NOVEDAD ===
     document.getElementById('novedadForm').addEventListener('submit', e => {
       e.preventDefault();
       const data = {
         codigo:  document.getElementById('codigo').value,
         tipo:    document.getElementById('tipo').value,
         detalle: document.getElementById('detalle').value,
-        fecha:   new Date().toLocaleString('es-AR')
+        fecha:   new Date().toLocaleDateString('es-AR') // Solo fecha
       };
       db.ref('novedades').push(data)
         .then(() => { alert('Novedad guardada'); e.target.reset(); })
         .catch(err => alert('Error: ' + err));
     });
 
-    // Descargar Excel
+    // === DESCARGAR EXCEL POR FECHA ===
     document.getElementById('descBtn').addEventListener('click', () => {
       const clave = document.getElementById('clave').value;
-      if (clave !== '123456') { alert('Contraseña incorrecta'); return; }
+      const fechaSeleccionada = document.getElementById('fechaFiltro').value;
+
+      if (clave !== '123456') {
+        alert('Contraseña incorrecta');
+        return;
+      }
+      if (!fechaSeleccionada) {
+        alert('Selecciona una fecha');
+        return;
+      }
+
+      // Convertir fecha seleccionada al formato local
+      const fechaFormateada = new Date(fechaSeleccionada).toLocaleDateString('es-AR');
+
       db.ref('novedades').once('value', snap => {
-        const regs = [];
-        snap.forEach(c => regs.push(c.val()));
-        if (!regs.length) { alert('Sin datos'); return; }
-        const ws = XLSX.utils.json_to_sheet(regs);
+        const registros = [];
+        snap.forEach(child => {
+          const reg = child.val();
+          if (reg.fecha === fechaFormateada) {
+            registros.push(reg);
+          }
+        });
+
+        if (!registros.length) {
+          alert('No hay novedades para la fecha seleccionada');
+          return;
+        }
+
+        const ws = XLSX.utils.json_to_sheet(registros);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Novedades');
-        XLSX.writeFile(wb, 'reporte_novedades.xlsx');
+        XLSX.writeFile(wb, `reporte_novedades_${fechaSeleccionada}.xlsx`);
       });
     });
   </script>
