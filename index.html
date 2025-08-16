@@ -2,119 +2,190 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Registro de Novedades</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <h1>Registro de Novedades</h1>
+  <title>Repositorio Excel – Columnas Filtrables</title>
 
-  <!-- === FORMULARIO === -->
-  <form id="novedadForm">
-    <input type="text" id="codigo" placeholder="Código (6 dígitos)" maxlength="6" required pattern="\d{6}">
-    <select id="tipo" required>
-      <option value="">-- Seleccione novedad --</option>
-      <option>NO VISITA DE EJECUTIVO</option>
-      <option>NO HAY DEVOLUCIONES</option>
-      <option>NO HAY CAMBIOS DE PRODUCTOS</option>
-      <option>CUPO LIMITADO</option>
-      <option>CLIENTE BLOQUEADO</option>
-      <option>SIN CREDITO</option>
-      <option>PROBLEMA EN FRECUENCIA DE LLAMADA</option>
-      <option>PROBLEMAS CON DESCUENTOS</option>
-      <option>BAJA ROTACION</option>
-      <option>NEGOCIO CERRADO</option>
-      <option>COMPRA A LA COMPETENCIA</option>
-      <option>PROBLEMAS CON LOGISTICA</option>
-      <option>PROBLEMAS DE INSUFICIENCIA</option>
-      <option>EJECUTIVO NO ENCUENTRA AL CLIENTE</option>
-      <option>TIENE OTRO CODIGO</option>
-      <option>PEDIDOS SIN CONSENTIMIENTO</option>
-      <option>POR VACACIONES</option>
-      <option>CLIENTE CERRADO TOTALMENTE</option>
-      <option>DELINCUENCIA (EXTORSION, VACUNAS, SECUESTROS)</option>
-      <option>COMPARTE CODIGO</option>
-      <option>COMPRA CADA 15 DIAS (O 1 VEZ AL MES)</option>
-      <option>CIERRE TEMPORAL (TEMA PERSONAL DEL CLIENTE)</option>
-      <option>NO CONTACTO (TELEFONO INCORRECTO)</option>
-    </select>
-    <input type="text" id="detalle" placeholder="Detalle" required>
-    <button type="submit">Guardar Novedad</button>
-  </form>
-
-  <hr>
-
-  <!-- === FILTRO Y DESCARGA === -->
-  <h2>Descargar Reporte por Fecha</h2>
-  <input type="date" id="fechaFiltro" required>
-  <input type="password" id="clave" placeholder="Contraseña">
-  <button id="descBtn">Descargar Excel</button>
-
-  <!-- Firebase SDK -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <!-- Excel -->
+  <!-- SheetJS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-  <script>
-    // === CONFIGURACIÓN FIREBASE ===
-    const firebaseConfig = {
-      apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
-      authDomain: "novedades-5257f.firebaseapp.com",
-      projectId: "novedades-5257f",
-      storageBucket: "novedades-5257f.firebasestorage.app",
-      messagingSenderId: "562100000903",
-      appId: "1:562100000903:web:aba04199c4abb1ee37c022"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  <style>
+    body{font-family:Arial;margin:30px;background:#f4f4f4}
+    h1,h2{margin-top:0}
+    input,select,button{padding:8px;margin:4px 0}
+    table{border-collapse:collapse;width:100%;background:#fff}
+    th,td{border:1px solid #ccc;padding:6px;font-size:.9em}
+    th{background:#eee}
+    .filter-row td input{width:100%;box-sizing:border-box}
+  </style>
+</head>
+<body>
 
-    // === GUARDAR NOVEDAD ===
-    document.getElementById('novedadForm').addEventListener('submit', e => {
-      e.preventDefault();
-      const data = {
-        codigo:  document.getElementById('codigo').value,
-        tipo:    document.getElementById('tipo').value,
-        detalle: document.getElementById('detalle').value,
-        fecha:   new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-      };
-      db.ref('novedades').push(data)
-        .then(() => { alert('Novedad guardada'); e.target.reset(); })
-        .catch(err => alert('Error: ' + err));
+<h1>Repositorio Excel – Columnas Filtrables</h1>
+
+<!-- === UPLOAD SECTION === -->
+<section>
+  <label>Selecciona archivo Excel (.xlsx):</label>
+  <input type="file" id="fileInput" accept=".xlsx">
+</section>
+
+<!-- === DATE SELECTOR & DOWNLOAD === -->
+<section>
+  <h2>Descargar base por fecha</h2>
+  <input type="date" id="fechaSelect">
+  <button onclick="downloadByDate()">Descargar Excel</button>
+</section>
+
+<!-- === TABLE WITH FILTERS === -->
+<section id="tableSection" style="display:none">
+  <h2 id="tableTitle">Vista previa</h2>
+  <table id="dataTable">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<script>
+/* ========== FIREBASE CONFIG ========== */
+const firebaseConfig = {
+  apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
+  authDomain: "novedades-5257f.firebaseapp.com",
+  projectId: "novedades-5257f",
+  storageBucket: "novedades-5257f.firebasestorage.app",
+  messagingSenderId: "562100000903",
+  appId: "1:562100000903:web:aba04199cabb1ee37c022"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ========== COLUMNS WE WANT ========== */
+const COLS = ['C','D','J','K','L','M','N','Q','S','T','V','W','AG','AH','AI'];
+
+/* ========== GLOBALS ========== */
+let currentData = [];   // raw rows for filtering
+let colNames = [];      // headers after mapping
+
+/* ========== UPLOAD HANDLER ========== */
+document.getElementById('fileInput').addEventListener('change', handleFile);
+
+function handleFile(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, {type:'binary'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, {header:1}); // array of rows
+
+    /* Build headers (first row) */
+    const headers = json[0];
+    colNames = COLS.map(c => headers[excelColToIndex(c)] || c); // fallback
+    currentData = json.slice(1).map(row => {
+      const obj = {};
+      COLS.forEach((c,i) => obj[colNames[i]] = row[excelColToIndex(c)]);
+      return obj;
     });
 
-    // === DESCARGAR EXCEL POR FECHA ===
-    document.getElementById('descBtn').addEventListener('click', () => {
-      const clave = document.getElementById('clave').value;
-      const fechaSeleccionada = document.getElementById('fechaFiltro').value;
+    showTable();
+    saveRepo(file.name);
+  };
+  reader.readAsBinaryString(file);
+}
 
-      if (clave !== 'primeralinea') {
-        alert('Contraseña incorrecta');
-        return;
-      }
-      if (!fechaSeleccionada) {
-        alert('Selecciona una fecha');
-        return;
-      }
+/* ========== TABLE WITH LIVE FILTERS ========== */
+function showTable() {
+  const tbl = document.getElementById('dataTable');
+  tbl.innerHTML = '';
 
-      db.ref('novedades').once('value', snap => {
-        const registros = [];
-        snap.forEach(child => {
-          if (child.val().fecha === fechaSeleccionada) {
-            registros.push(child.val());
-          }
-        });
+  /* Header row */
+  const head = tbl.createTHead();
+  const hRow = head.insertRow();
+  colNames.forEach(name => {
+    const th = document.createElement('th');
+    th.textContent = name;
+    hRow.appendChild(th);
+  });
 
-        if (!registros.length) {
-          alert('No hay novedades para la fecha seleccionada');
-          return;
-        }
+  /* Filter row */
+  const fRow = head.insertRow();
+  fRow.className = 'filter-row';
+  colNames.forEach((_,i)=>{
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.setAttribute('placeholder','🔍');
+    inp.dataset.col = i;
+    inp.addEventListener('keyup', applyFilters);
+    td.appendChild(inp);
+    fRow.appendChild(td);
+  });
 
-        const ws = XLSX.utils.json_to_sheet(registros);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Novedades');
-        XLSX.writeFile(wb, `reporte_novedades_${fechaSeleccionada}.xlsx`);
-      });
+  /* Body */
+  const tbody = tbl.createTBody();
+  tbody.id = 'tbody';
+  renderRows(currentData);
+
+  document.getElementById('tableSection').style.display='block';
+}
+
+function renderRows(data) {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  data.forEach(row=>{
+    const tr = tbody.insertRow();
+    colNames.forEach(name=>{
+      const td = tr.insertCell();
+      td.textContent = row[name] ?? '';
     });
-  </script>
+  });
+}
+
+function applyFilters() {
+  const inputs = [...document.querySelectorAll('.filter-row input')];
+  const filters = inputs.map(inp => inp.value.toLowerCase());
+  const filtered = currentData.filter(row=>{
+    return filters.every((f,i)=> !f || String(row[colNames[i]]).toLowerCase().includes(f));
+  });
+  renderRows(filtered);
+}
+
+/* ========== SAVE TO FIREBASE BY DATE ========== */
+function saveRepo(filename) {
+  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  db.ref('bases/' + today).set({
+    filename,
+    headers: colNames,
+    rows: currentData
+  }).then(()=>alert('Base guardada el '+today));
+}
+
+/* ========== DOWNLOAD BY DATE ========== */
+function downloadByDate() {
+  const fecha = document.getElementById('fechaSelect').value;
+  if(!fecha){alert('Selecciona fecha');return;}
+
+  db.ref('bases/' + fecha).once('value', snap=>{
+    if(!snap.exists()){
+      alert('No hay base para esa fecha');
+      return;
+    }
+    const {headers, rows} = snap.val();
+    const ws = XLSX.utils.json_to_sheet(rows, {header:headers});
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Base');
+    XLSX.writeFile(wb, `base_${fecha}.xlsx`);
+  });
+}
+
+/* ========== HELPER: A=0, B=1, …, AG=31 … ========== */
+function excelColToIndex(col) {
+  let index = 0;
+  for (let i=0;i<col.length;i++){
+    index = index * 26 + (col.charCodeAt(i) - 64);
+  }
+  return index - 1;
+}
+</script>
 </body>
 </html>
