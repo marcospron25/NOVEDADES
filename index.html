@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Repositorio Excel – Columnas Filtrables</title>
+  <title>Repositorio Excel – Accesos</title>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -11,34 +11,49 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
-    body{font-family:Arial;margin:30px;background:#f4f4f4}
-    h1,h2{margin-top:0}
-    input,select,button{padding:8px;margin:4px 0}
-    table{border-collapse:collapse;width:100%;background:#fff}
-    th,td{border:1px solid #ccc;padding:6px;font-size:.9em}
-    th{background:#eee}
-    .filter-row td input{width:100%;box-sizing:border-box}
+    body { font-family: Arial; margin: 30px; background: #f4f4f4 }
+    h1, h2 { margin-top: 0 }
+    input, select, button { padding: 8px; margin: 4px 0 }
+    table { border-collapse: collapse; width: 100%; background: #fff }
+    th, td { border: 1px solid #ccc; padding: 6px; font-size: .9em }
+    th { background: #eee }
+    .filter-row td select { width: 100% }
+    .hidden { display: none }
+    #loginSection { margin-bottom: 30px; }
   </style>
 </head>
 <body>
 
-<h1>Repositorio Excel – Columnas Filtrables</h1>
+<h1>Repositorio Excel – Accesos</h1>
 
-<!-- === UPLOAD SECTION === -->
-<section>
-  <label>Selecciona archivo Excel (.xlsx):</label>
-  <input type="file" id="fileInput" accept=".xlsx">
+<!-- === LOGIN === -->
+<section id="loginSection">
+  <h2>Acceso</h2>
+  <label>Tipo de usuario:</label>
+  <select id="userType">
+    <option value="admin">Administrador</option>
+    <option value="tv">Televendedor</option>
+  </select><br>
+  <label>Código o contraseña:</label>
+  <input type="password" id="userCode">
+  <button onclick="login()">Ingresar</button>
 </section>
 
-<!-- === DATE SELECTOR & DOWNLOAD === -->
-<section>
-  <h2>Descargar base por fecha</h2>
-  <input type="date" id="fechaSelect">
-  <button onclick="downloadByDate()">Descargar Excel</button>
+<!-- === ADMIN SECTION === -->
+<section id="adminSection" class="hidden">
+  <h2>Subir base Excel</h2>
+  <input type="file" id="fileInput" accept=".xlsx"><br>
+  <p><strong>Fecha actual:</strong> <span id="fechaHoy"></span></p>
 </section>
 
-<!-- === TABLE WITH FILTERS === -->
-<section id="tableSection" style="display:none">
+<!-- === TELEVENDEDOR SECTION === -->
+<section id="tvSection" class="hidden">
+  <h2>Vista para Televendedor</h2>
+  <p><strong>Código TV:</strong> <span id="tvCodeShow"></span></p>
+</section>
+
+<!-- === TABLE === -->
+<section id="tableSection" class="hidden">
   <h2 id="tableTitle">Vista previa</h2>
   <table id="dataTable">
     <thead></thead>
@@ -47,29 +62,49 @@
 </section>
 
 <script>
-/* ========== FIREBASE CONFIG ========== */
+/* === FIREBASE CONFIG === */
 const firebaseConfig = {
   apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
   authDomain: "novedades-5257f.firebaseapp.com",
   projectId: "novedades-5257f",
-  storageBucket: "novedades-5257f.firebasestorage.app",
+  storageBucket: "novedades-5257f.appspot.com",
   messagingSenderId: "562100000903",
   appId: "1:562100000903:web:aba04199cabb1ee37c022"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ========== COLUMNS WE WANT ========== */
+/* === COLUMNAS QUE SE MOSTRARÁN === */
 const COLS = ['C','D','J','K','L','M','N','Q','S','T','V','W','AG','AH','AI'];
+let colNames = [];
+let currentData = [];
+let userRole = null;
+let userCode = null;
 
-/* ========== GLOBALS ========== */
-let currentData = [];   // raw rows for filtering
-let colNames = [];      // headers after mapping
+/* === LOGIN === */
+function login() {
+  const type = document.getElementById('userType').value;
+  const code = document.getElementById('userCode').value.trim();
 
-/* ========== UPLOAD HANDLER ========== */
-document.getElementById('fileInput').addEventListener('change', handleFile);
+  if (type === 'admin' && code === '123456') {
+    userRole = 'admin';
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('adminSection').classList.remove('hidden');
+    document.getElementById('fechaHoy').textContent = new Date().toISOString().slice(0, 10);
+  } else if (type === 'tv' && code === 'TV1010') {
+    userRole = 'tv';
+    userCode = code;
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('tvSection').classList.remove('hidden');
+    document.getElementById('tvCodeShow').textContent = code;
+    loadDataForTV(code);
+  } else {
+    alert('Credenciales incorrectas');
+  }
+}
 
-function handleFile(evt) {
+/* === MANEJAR SUBIDA DE EXCEL === */
+document.getElementById('fileInput').addEventListener('change', function(evt) {
   const file = evt.target.files[0];
   if (!file) return;
 
@@ -77,29 +112,47 @@ function handleFile(evt) {
   reader.onload = e => {
     const wb = XLSX.read(e.target.result, {type:'binary'});
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(ws, {header:1}); // array of rows
-
-    /* Build headers (first row) */
+    const json = XLSX.utils.sheet_to_json(ws, {header:1});
     const headers = json[0];
-    colNames = COLS.map(c => headers[excelColToIndex(c)] || c); // fallback
+    colNames = COLS.map(c => headers[excelColToIndex(c)] || c);
     currentData = json.slice(1).map(row => {
       const obj = {};
-      COLS.forEach((c,i) => obj[colNames[i]] = row[excelColToIndex(c)]);
+      COLS.forEach((c, i) => obj[colNames[i]] = row[excelColToIndex(c)]);
       return obj;
     });
 
-    showTable();
-    saveRepo(file.name);
+    const fecha = new Date().toISOString().slice(0,10);
+    db.ref('bases/' + fecha).set({
+      headers: colNames,
+      rows: currentData
+    }).then(() => {
+      alert('Base guardada para ' + fecha);
+      showTable(currentData);
+    });
   };
   reader.readAsBinaryString(file);
+});
+
+/* === CARGAR DATA PARA TELEVENDEDOR === */
+function loadDataForTV(tvCode) {
+  const today = new Date().toISOString().slice(0, 10);
+  db.ref('bases/' + today).once('value', snap => {
+    if (!snap.exists()) {
+      alert('No hay base para hoy.');
+      return;
+    }
+
+    const { headers, rows } = snap.val();
+    colNames = headers;
+    currentData = rows.filter(row => row[colNames[10]] === tvCode); // columna V
+    showTable(currentData, true);
+  });
 }
 
-/* ========== TABLE WITH LIVE FILTERS ========== */
-function showTable() {
+/* === MOSTRAR TABLA === */
+function showTable(data, useDropdownFilters = false) {
   const tbl = document.getElementById('dataTable');
   tbl.innerHTML = '';
-
-  /* Header row */
   const head = tbl.createTHead();
   const hRow = head.insertRow();
   colNames.forEach(name => {
@@ -108,80 +161,52 @@ function showTable() {
     hRow.appendChild(th);
   });
 
-  /* Filter row */
   const fRow = head.insertRow();
   fRow.className = 'filter-row';
-  colNames.forEach((_,i)=>{
+  colNames.forEach((name, i) => {
     const td = document.createElement('td');
-    const inp = document.createElement('input');
-    inp.setAttribute('placeholder','🔍');
-    inp.dataset.col = i;
-    inp.addEventListener('keyup', applyFilters);
-    td.appendChild(inp);
+    if (useDropdownFilters) {
+      const select = document.createElement('select');
+      const values = [...new Set(data.map(r => r[name]).filter(Boolean))];
+      select.innerHTML = `<option value="">(Todos)</option>` + values.map(v => `<option>${v}</option>`).join('');
+      select.onchange = () => applySelectFilters();
+      td.appendChild(select);
+    }
     fRow.appendChild(td);
   });
 
-  /* Body */
   const tbody = tbl.createTBody();
   tbody.id = 'tbody';
-  renderRows(currentData);
+  renderRows(data);
 
-  document.getElementById('tableSection').style.display='block';
+  document.getElementById('tableSection').classList.remove('hidden');
 }
 
 function renderRows(data) {
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
-  data.forEach(row=>{
+  data.forEach(row => {
     const tr = tbody.insertRow();
-    colNames.forEach(name=>{
+    colNames.forEach(name => {
       const td = tr.insertCell();
       td.textContent = row[name] ?? '';
     });
   });
 }
 
-function applyFilters() {
-  const inputs = [...document.querySelectorAll('.filter-row input')];
-  const filters = inputs.map(inp => inp.value.toLowerCase());
-  const filtered = currentData.filter(row=>{
-    return filters.every((f,i)=> !f || String(row[colNames[i]]).toLowerCase().includes(f));
+function applySelectFilters() {
+  const selects = [...document.querySelectorAll('.filter-row select')];
+  const filters = selects.map(sel => sel.value);
+  const filtered = currentData.filter(row => {
+    return filters.every((f, i) => !f || row[colNames[i]] === f);
   });
   renderRows(filtered);
 }
 
-/* ========== SAVE TO FIREBASE BY DATE ========== */
-function saveRepo(filename) {
-  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
-  db.ref('bases/' + today).set({
-    filename,
-    headers: colNames,
-    rows: currentData
-  }).then(()=>alert('Base guardada el '+today));
-}
-
-/* ========== DOWNLOAD BY DATE ========== */
-function downloadByDate() {
-  const fecha = document.getElementById('fechaSelect').value;
-  if(!fecha){alert('Selecciona fecha');return;}
-
-  db.ref('bases/' + fecha).once('value', snap=>{
-    if(!snap.exists()){
-      alert('No hay base para esa fecha');
-      return;
-    }
-    const {headers, rows} = snap.val();
-    const ws = XLSX.utils.json_to_sheet(rows, {header:headers});
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Base');
-    XLSX.writeFile(wb, `base_${fecha}.xlsx`);
-  });
-}
-
-/* ========== HELPER: A=0, B=1, …, AG=31 … ========== */
+/* === EXCEL COL A ÍNDICE === */
 function excelColToIndex(col) {
   let index = 0;
-  for (let i=0;i<col.length;i++){
+  for (let i = 0; i < col.length; i++) {
     index = index * 26 + (col.charCodeAt(i) - 64);
   }
   return index - 1;
