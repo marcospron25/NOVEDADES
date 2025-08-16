@@ -19,7 +19,7 @@
     th { background: #eee }
     .filter-row td select { width: 100% }
     .hidden { display: none }
-    #loginSection { margin-bottom: 30px; }
+    #statusMsg { font-weight: bold; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -44,6 +44,8 @@
   <h2>Subir base Excel</h2>
   <input type="file" id="fileInput" accept=".xlsx"><br>
   <p><strong>Fecha actual:</strong> <span id="fechaHoy"></span></p>
+  <button onclick="uploadBase()">Cargar</button>
+  <p id="statusMsg"></p>
 </section>
 
 <!-- === TELEVENDEDOR SECTION === -->
@@ -62,7 +64,6 @@
 </section>
 
 <script>
-/* === FIREBASE CONFIG === */
 const firebaseConfig = {
   apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
   authDomain: "novedades-5257f.firebaseapp.com",
@@ -74,14 +75,10 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* === COLUMNAS QUE SE MOSTRARÁN === */
 const COLS = ['C','D','J','K','L','M','N','Q','S','T','V','W','AG','AH','AI'];
-let colNames = [];
-let currentData = [];
-let userRole = null;
-let userCode = null;
+let colNames = [], currentData = [], userRole = null, userCode = null;
+let rawExcelData = null;
 
-/* === LOGIN === */
 function login() {
   const type = document.getElementById('userType').value;
   const code = document.getElementById('userCode').value.trim();
@@ -103,7 +100,6 @@ function login() {
   }
 }
 
-/* === MANEJAR SUBIDA DE EXCEL === */
 document.getElementById('fileInput').addEventListener('change', function(evt) {
   const file = evt.target.files[0];
   if (!file) return;
@@ -121,19 +117,29 @@ document.getElementById('fileInput').addEventListener('change', function(evt) {
       return obj;
     });
 
-    const fecha = new Date().toISOString().slice(0,10);
-    db.ref('bases/' + fecha).set({
-      headers: colNames,
-      rows: currentData
-    }).then(() => {
-      alert('Base guardada para ' + fecha);
-      showTable(currentData);
-    });
+    rawExcelData = { headers: colNames, rows: currentData };
+    document.getElementById('statusMsg').textContent = '✅ Archivo cargado. Ahora presiona "Cargar" para subir.';
+    showTable(currentData);
   };
   reader.readAsBinaryString(file);
 });
 
-/* === CARGAR DATA PARA TELEVENDEDOR === */
+function uploadBase() {
+  if (!rawExcelData) {
+    alert("Primero selecciona un archivo Excel.");
+    return;
+  }
+
+  const fecha = new Date().toISOString().slice(0,10);
+  document.getElementById('statusMsg').textContent = '⏳ Cargando base en Firebase...';
+
+  db.ref('bases/' + fecha).set(rawExcelData).then(() => {
+    document.getElementById('statusMsg').textContent = '✅ Base cargada correctamente para ' + fecha;
+  }).catch(err => {
+    document.getElementById('statusMsg').textContent = '❌ Error: ' + err.message;
+  });
+}
+
 function loadDataForTV(tvCode) {
   const today = new Date().toISOString().slice(0, 10);
   db.ref('bases/' + today).once('value', snap => {
@@ -149,7 +155,6 @@ function loadDataForTV(tvCode) {
   });
 }
 
-/* === MOSTRAR TABLA === */
 function showTable(data, useDropdownFilters = false) {
   const tbl = document.getElementById('dataTable');
   tbl.innerHTML = '';
@@ -203,14 +208,6 @@ function applySelectFilters() {
   renderRows(filtered);
 }
 
-/* === EXCEL COL A ÍNDICE === */
 function excelColToIndex(col) {
   let index = 0;
-  for (let i = 0; i < col.length; i++) {
-    index = index * 26 + (col.charCodeAt(i) - 64);
-  }
-  return index - 1;
-}
-</script>
-</body>
-</html>
+  for (let i = 0; i <
