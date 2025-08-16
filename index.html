@@ -210,4 +210,11 @@ function applySelectFilters() {
 
 function excelColToIndex(col) {
   let index = 0;
-  for (let i = 0; i <
+  for (let i = 0; i < col.length; i++) {
+    index = index * 26 + (col.charCodeAt(i) - 64);
+  }
+  return index - 1;
+}
+</script>
+</body>
+</html>
