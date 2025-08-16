@@ -55,9 +55,21 @@
 </section>
 
 <script>
-const firebaseConfig = {/* Tu config aquí */};
+// Aquí está tu configuración de Firebase correcta para compat:
+const firebaseConfig = {
+  apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
+  authDomain: "novedades-5257f.firebaseapp.com",
+  databaseURL: "https://novedades-5257f-default-rtdb.firebaseio.com",
+  projectId: "novedades-5257f",
+  storageBucket: "novedades-5257f.firebasestorage.app",
+  messagingSenderId: "562100000903",
+  appId: "1:562100000903:web:aba04199c4abb1ee37c022"
+};
+
+// Inicializa Firebase con compat:
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
 const COLS = ['C','D','J','K','L','M','N','Q','S','T','V','W','AG','AH','AI'];
 let colNames = [], currentData = [], rawExcelData = null;
 
@@ -105,6 +117,7 @@ document.getElementById('fileInput').addEventListener('change', function(evt) {
 function uploadBase() {
   if (!rawExcelData) return alert("Primero selecciona un archivo.");
   const fecha = new Date().toISOString().slice(0,10);
+  console.log("Subiendo a Firebase:", rawExcelData); // Para debug
   document.getElementById('statusMsg').textContent = '⏳ Cargando base en Firebase...';
   db.ref('bases/' + fecha).set(rawExcelData)
     .then(() => {
@@ -176,4 +189,3 @@ function excelColToIndex(col) {
 </script>
 </body>
 </html>
-
