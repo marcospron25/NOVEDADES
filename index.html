@@ -3,13 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Repositorio Excel – Accesos</title>
-
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <!-- SheetJS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
   <style>
     body { font-family: Arial; margin: 30px; background: #f4f4f4 }
     h1, h2 { margin-top: 0 }
@@ -26,7 +22,6 @@
 
 <h1>Repositorio Excel – Accesos</h1>
 
-<!-- === LOGIN === -->
 <section id="loginSection">
   <h2>Acceso</h2>
   <label>Tipo de usuario:</label>
@@ -39,58 +34,41 @@
   <button onclick="login()">Ingresar</button>
 </section>
 
-<!-- === ADMIN SECTION === -->
 <section id="adminSection" class="hidden">
   <h2>Subir base Excel</h2>
   <input type="file" id="fileInput" accept=".xlsx"><br>
   <p><strong>Fecha actual:</strong> <span id="fechaHoy"></span></p>
   <button onclick="uploadBase()">Cargar</button>
+  <button onclick="logout()">Cerrar sesión</button>
   <p id="statusMsg"></p>
 </section>
 
-<!-- === TELEVENDEDOR SECTION === -->
 <section id="tvSection" class="hidden">
   <h2>Vista para Televendedor</h2>
   <p><strong>Código TV:</strong> <span id="tvCodeShow"></span></p>
+  <button onclick="logout()">Cerrar sesión</button>
 </section>
 
-<!-- === TABLE === -->
 <section id="tableSection" class="hidden">
   <h2 id="tableTitle">Vista previa</h2>
-  <table id="dataTable">
-    <thead></thead>
-    <tbody></tbody>
-  </table>
+  <table id="dataTable"><thead></thead><tbody></tbody></table>
 </section>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
-  authDomain: "novedades-5257f.firebaseapp.com",
-  projectId: "novedades-5257f",
-  storageBucket: "novedades-5257f.appspot.com",
-  messagingSenderId: "562100000903",
-  appId: "1:562100000903:web:aba04199cabb1ee37c022"
-};
+const firebaseConfig = {/* Tu config aquí */};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
 const COLS = ['C','D','J','K','L','M','N','Q','S','T','V','W','AG','AH','AI'];
-let colNames = [], currentData = [], userRole = null, userCode = null;
-let rawExcelData = null;
+let colNames = [], currentData = [], rawExcelData = null;
 
 function login() {
   const type = document.getElementById('userType').value;
   const code = document.getElementById('userCode').value.trim();
-
   if (type === 'admin' && code === '123456') {
-    userRole = 'admin';
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('adminSection').classList.remove('hidden');
     document.getElementById('fechaHoy').textContent = new Date().toISOString().slice(0, 10);
   } else if (type === 'tv' && code === 'TV1010') {
-    userRole = 'tv';
-    userCode = code;
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('tvSection').classList.remove('hidden');
     document.getElementById('tvCodeShow').textContent = code;
@@ -100,10 +78,11 @@ function login() {
   }
 }
 
+function logout() { location.reload(); }
+
 document.getElementById('fileInput').addEventListener('change', function(evt) {
   const file = evt.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = e => {
     const wb = XLSX.read(e.target.result, {type:'binary'});
@@ -113,44 +92,37 @@ document.getElementById('fileInput').addEventListener('change', function(evt) {
     colNames = COLS.map(c => headers[excelColToIndex(c)] || c);
     currentData = json.slice(1).map(row => {
       const obj = {};
-      COLS.forEach((c, i) => obj[colNames[i]] = row[excelColToIndex(c)]);
+      COLS.forEach((c,i) => obj[colNames[i]] = row[excelColToIndex(c)]);
       return obj;
     });
-
     rawExcelData = { headers: colNames, rows: currentData };
-    document.getElementById('statusMsg').textContent = '✅ Archivo cargado. Ahora presiona "Cargar" para subir.';
+    document.getElementById('statusMsg').textContent = '✅ Archivo cargado. Presiona "Cargar".';
     showTable(currentData);
   };
   reader.readAsBinaryString(file);
 });
 
 function uploadBase() {
-  if (!rawExcelData) {
-    alert("Primero selecciona un archivo Excel.");
-    return;
-  }
-
+  if (!rawExcelData) return alert("Primero selecciona un archivo.");
   const fecha = new Date().toISOString().slice(0,10);
   document.getElementById('statusMsg').textContent = '⏳ Cargando base en Firebase...';
-
-  db.ref('bases/' + fecha).set(rawExcelData).then(() => {
-    document.getElementById('statusMsg').textContent = '✅ Base cargada correctamente para ' + fecha;
-  }).catch(err => {
-    document.getElementById('statusMsg').textContent = '❌ Error: ' + err.message;
-  });
+  db.ref('bases/' + fecha).set(rawExcelData)
+    .then(() => {
+      document.getElementById('statusMsg').textContent = '✅ Base cargada correctamente para ' + fecha;
+    })
+    .catch(err => {
+      document.getElementById('statusMsg').textContent = '❌ Error al cargar: ' + err.message;
+      console.error('Error firebase write:', err);
+    });
 }
 
 function loadDataForTV(tvCode) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0,10);
   db.ref('bases/' + today).once('value', snap => {
-    if (!snap.exists()) {
-      alert('No hay base para hoy.');
-      return;
-    }
-
+    if (!snap.exists()) return alert('No hay base para hoy.');
     const { headers, rows } = snap.val();
     colNames = headers;
-    currentData = rows.filter(row => row[colNames[10]] === tvCode); // columna V
+    currentData = rows.filter(row => row[colNames[10]] === tvCode);
     showTable(currentData, true);
   });
 }
@@ -160,30 +132,21 @@ function showTable(data, useDropdownFilters = false) {
   tbl.innerHTML = '';
   const head = tbl.createTHead();
   const hRow = head.insertRow();
-  colNames.forEach(name => {
-    const th = document.createElement('th');
-    th.textContent = name;
-    hRow.appendChild(th);
-  });
-
-  const fRow = head.insertRow();
-  fRow.className = 'filter-row';
+  colNames.forEach(name => { const th = document.createElement('th'); th.textContent = name; hRow.appendChild(th); });
+  const fRow = head.insertRow(); fRow.className = 'filter-row';
   colNames.forEach((name, i) => {
     const td = document.createElement('td');
     if (useDropdownFilters) {
       const select = document.createElement('select');
       const values = [...new Set(data.map(r => r[name]).filter(Boolean))];
       select.innerHTML = `<option value="">(Todos)</option>` + values.map(v => `<option>${v}</option>`).join('');
-      select.onchange = () => applySelectFilters();
+      select.onchange = applySelectFilters;
       td.appendChild(select);
     }
     fRow.appendChild(td);
   });
-
-  const tbody = tbl.createTBody();
-  tbody.id = 'tbody';
+  const tbody = tbl.createTBody(); tbody.id = 'tbody';
   renderRows(data);
-
   document.getElementById('tableSection').classList.remove('hidden');
 }
 
@@ -200,21 +163,17 @@ function renderRows(data) {
 }
 
 function applySelectFilters() {
-  const selects = [...document.querySelectorAll('.filter-row select')];
-  const filters = selects.map(sel => sel.value);
-  const filtered = currentData.filter(row => {
-    return filters.every((f, i) => !f || row[colNames[i]] === f);
-  });
+  const filters = [...document.querySelectorAll('.filter-row select')].map(s => s.value);
+  const filtered = currentData.filter(row => filters.every((f,i) => !f || row[colNames[i]] === f));
   renderRows(filtered);
 }
 
 function excelColToIndex(col) {
-  let index = 0;
-  for (let i = 0; i < col.length; i++) {
-    index = index * 26 + (col.charCodeAt(i) - 64);
-  }
-  return index - 1;
+  let idx = 0;
+  for (let c of col) idx = idx * 26 + (c.charCodeAt(0) - 64);
+  return idx - 1;
 }
 </script>
 </body>
 </html>
+
