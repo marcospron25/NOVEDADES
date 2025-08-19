@@ -1,28 +1,22 @@
 <!doctype html>
-<title>Ingreso / Reportes</title>
+<title>Rutero – Ingreso / Reporte</title>
+<meta charset="utf-8">
 <style>
-  body{font-family:Arial;margin:30px}
-  .hidden{display:none}
-  /* estilo para los radio custom */
+  body{font-family:Arial;margin:30px;background:#f7f7f7}
   .radio-group{display:flex;gap:10px;margin:8px 0}
-  .radio-group label{
-    padding:6px 14px;border:1px solid #000;cursor:pointer;
-    border-radius:4px;font-weight:bold
-  }
   .radio-group input[type=radio]{display:none}
-  .radio-group input[type=radio]:checked + label{
-    background:#000;color:#fff
-  }
+  .radio-group label{padding:8px 16px;border:1px solid #000;cursor:pointer;border-radius:4px;font-weight:bold}
+  .radio-group input[type=radio]:checked+label{background:#000;color:#fff}
+  .hidden{display:none}
 </style>
 
 <h2>Ingresar datos</h2>
 <form id="ingreso">
-  <label>Código:</label><br>
-  <input name="codigo" required><br><br>
+  <label>Código:</label><br><input name="codigo" required><br><br>
 
   <label>Opción:</label><br>
   <select name="opcion" required>
-    <option value="" disabled selected>Seleccionar…</option>
+    <option disabled selected>Seleccionar…</option>
     <option>NO VISITA DE EJECUTIVO</option>
     <option>NO HAY DEVOLUCIONES</option>
     <option>NO HAY CAMBIOS DE PRODUCTOS</option>
@@ -49,18 +43,13 @@
     <option>NO CONTACTO (TELEFONO INCORRECTO)</option>
   </select><br><br>
 
-  <label>¿Contesto?</label>
+  <label>¿Contestó?</label>
   <div class="radio-group">
-    <input type="radio" id="si" name="contesto" value="Sí" required>
-    <label for="si">Sí</label>
-
-    <input type="radio" id="no" name="contesto" value="No">
-    <label for="no">No</label>
+    <input type="radio" id="si" name="contesto" value="Sí" required><label for="si">Sí</label>
+    <input type="radio" id="no" name="contesto" value="No"><label for="no">No</label>
   </div><br>
 
-  <label>Detalle:</label><br>
-  <textarea name="detalle" rows="4" cols="40"></textarea><br><br>
-
+  <label>Detalle:</label><br><textarea name="detalle" rows="4" cols="40"></textarea><br><br>
   <button type="submit">Ingresar</button>
   <span id="msg1"></span>
 </form>
@@ -68,44 +57,36 @@
 <hr>
 
 <h2>Zona de reportes</h2>
-<label>Contraseña:</label><br>
-<input type="password" id="pass"><br><br>
+<label>Contraseña:</label><br><input type="password" id="pass"><br><br>
 <button id="btnPass">Entrar</button>
 
 <div id="reporte" class="hidden">
-  <label>Fecha para reporte:</label><br>
-  <input type="date" id="fecha"><br><br>
-  <button id="btnDesc">Descargar JSON</button>
+  <label>Fecha para reporte:</label><br><input type="date" id="fecha"><br><br>
+  <button id="btnDesc">Descargar Excel</button>
 </div>
 
 <script>
-  // --- Ingresar datos ---
+  // Guardar
   document.getElementById('ingreso').addEventListener('submit', async e => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
     data.fecha = new Date().toISOString().slice(0,10);
-    await fetch('/ingresar', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(data)
-    });
+    await fetch('/ingresar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
     document.getElementById('msg1').textContent = '✅ Guardado';
     e.target.reset();
   });
 
-  // --- Mostrar reporte ---
+  // Mostrar zona
   document.getElementById('btnPass').onclick = () => {
-    if(document.getElementById('pass').value === 'reporte123'){
+    if(document.getElementById('pass').value === '${PASSWORD}'){
       document.getElementById('reporte').classList.remove('hidden');
-    }else{
-      alert('Contraseña incorrecta');
-    }
+    }else alert('Contraseña incorrecta');
   };
 
-  // --- Descargar EXCEL (nuevo) ---
+  // Descargar Excel
   document.getElementById('btnDesc').onclick = () => {
     const fecha = document.getElementById('fecha').value;
     if(!fecha) return alert('Elegí fecha');
-    window.location.href = '/reporte?fecha=' + fecha; // ahora devuelve .xlsx
+    window.location.href = '/reporte?fecha=' + fecha;
   };
 </script>
