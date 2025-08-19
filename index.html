@@ -137,13 +137,14 @@ body { font-family: Arial; margin: 30px; background: #f7f7f7 }
     const fecha = document.getElementById('fecha').value;
     if (!fecha) return alert('Elegí fecha');
 
-    const snap = await db.ref('registros')
-                         .orderByChild('fecha')
-                         .equalTo(fecha)
-                         .once('value');
-
+    const snap = await db.ref('registros').once('value');
     const rows = [];
-    snap.forEach(child => rows.push(child.val()));
+    snap.forEach(child => {
+      const val = child.val();
+      if (val.fecha && val.fecha.startsWith(fecha)) {
+        rows.push(val);
+      }
+    });
 
     if (!rows.length) return alert('Sin datos para la fecha seleccionada');
 
