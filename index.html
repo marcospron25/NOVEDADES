@@ -101,14 +101,12 @@ body { font-family: Arial; margin: 30px; background: #f7f7f7 }
   document.getElementById('ingreso').addEventListener('submit', async e => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
-    data.fecha = new Date().toISOString().slice(0,10);
+    data.fecha = new Date().toISOString().split('T')[0]; // Solo YYYY-MM-DD
     
     try {
       await db.ref('registros').push(data);
-      console.log("Datos guardados:", data);
       document.getElementById('msg1').textContent = '✅ Guardado';
 
-      // Borrar mensaje luego de 3 segundos
       setTimeout(() => {
         document.getElementById('msg1').textContent = '';
       }, 3000);
