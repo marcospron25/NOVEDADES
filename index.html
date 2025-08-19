@@ -1,191 +1,117 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Repositorio Excel – Accesos</title>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    body { font-family: Arial; margin: 30px; background: #f4f4f4 }
-    h1, h2 { margin-top: 0 }
-    input, select, button { padding: 8px; margin: 4px 0 }
-    table { border-collapse: collapse; width: 100%; background: #fff }
-    th, td { border: 1px solid #ccc; padding: 6px; font-size: .9em }
-    th { background: #eee }
-    .filter-row td select { width: 100% }
-    .hidden { display: none }
-    #statusMsg { font-weight: bold; margin-top: 10px; }
-  </style>
-</head>
-<body>
+<!doctype html>
+<title>Ingreso / Reportes</title>
+<style>
+  body{font-family:Arial;margin:30px}
+  .hidden{display:none}
+  /* estilo para los radio custom */
+  .radio-group{display:flex;gap:10px;margin:8px 0}
+  .radio-group label{
+    padding:6px 14px;border:1px solid #000;cursor:pointer;
+    border-radius:4px;font-weight:bold
+  }
+  .radio-group input[type=radio]{display:none}
+  .radio-group input[type=radio]:checked + label{
+    background:#000;color:#fff
+  }
+</style>
 
-<h1>Repositorio Excel – Accesos</h1>
+<h2>Ingresar datos</h2>
+<form id="ingreso">
+  <label>Código:</label><br>
+  <input name="codigo" required><br><br>
 
-<section id="loginSection">
-  <h2>Acceso</h2>
-  <label>Tipo de usuario:</label>
-  <select id="userType">
-    <option value="admin">Administrador</option>
-    <option value="tv">Televendedor</option>
-  </select><br>
-  <label>Código o contraseña:</label>
-  <input type="password" id="userCode">
-  <button onclick="login()">Ingresar</button>
-</section>
+  <label>Opción:</label><br>
+  <select name="opcion" required>
+    <option value="" disabled selected>Seleccionar…</option>
+    <option>NO VISITA DE EJECUTIVO</option>
+    <option>NO HAY DEVOLUCIONES</option>
+    <option>NO HAY CAMBIOS DE PRODUCTOS</option>
+    <option>CUPO LIMITADO</option>
+    <option>CLIENTE BLOQUEADO</option>
+    <option>SIN CREDITO</option>
+    <option>PROBLEMA EN FRECUENCIA DE LLAMADA</option>
+    <option>PROBLEMAS CON DESCUENTOS</option>
+    <option>BAJA ROTACION</option>
+    <option>NEGOCIO CERRADO</option>
+    <option>COMPRA A LA COMPETENCIA</option>
+    <option>PROBLEMAS CON LOGISTICA</option>
+    <option>PROBLEMAS DE INSUFICIENCIA</option>
+    <option>EJECUTIVO NO ENCUENTRA AL CLIENTE</option>
+    <option>TIENE OTRO CODIGO</option>
+    <option>PEDIDOS SIN CONSENTIMIENTO</option>
+    <option>POR VACACIONES</option>
+    <option>FALTA DE AGUA</option>
+    <option>CLIENTE CERRADO TOTALMENTE</option>
+    <option>DELINCUENCIA (EXTORSION, VACUNAS, SECUESTROS)</option>
+    <option>COMPARTE CODIGO</option>
+    <option>COMPRA CADA 15 DIAS (O 1 VEZ AL MES)</option>
+    <option>CIERRE TEMPORAL (TEMA PERSONAL DEL CLIENTE)</option>
+    <option>NO CONTACTO (TELEFONO INCORRECTO)</option>
+  </select><br><br>
 
-<section id="adminSection" class="hidden">
-  <h2>Subir base Excel</h2>
-  <input type="file" id="fileInput" accept=".xlsx"><br>
-  <p><strong>Fecha actual:</strong> <span id="fechaHoy"></span></p>
-  <button onclick="uploadBase()">Cargar</button>
-  <button onclick="logout()">Cerrar sesión</button>
-  <p id="statusMsg"></p>
-</section>
+  <label>¿Contesto?</label>
+  <div class="radio-group">
+    <input type="radio" id="si" name="contesto" value="Sí" required>
+    <label for="si">Sí</label>
 
-<section id="tvSection" class="hidden">
-  <h2>Vista para Televendedor</h2>
-  <p><strong>Código TV:</strong> <span id="tvCodeShow"></span></p>
-  <button onclick="logout()">Cerrar sesión</button>
-</section>
+    <input type="radio" id="no" name="contesto" value="No">
+    <label for="no">No</label>
+  </div><br>
 
-<section id="tableSection" class="hidden">
-  <h2 id="tableTitle">Vista previa</h2>
-  <table id="dataTable"><thead></thead><tbody></tbody></table>
-</section>
+  <label>Detalle:</label><br>
+  <textarea name="detalle" rows="4" cols="40"></textarea><br><br>
+
+  <button type="submit">Ingresar</button>
+  <span id="msg1"></span>
+</form>
+
+<hr>
+
+<h2>Zona de reportes</h2>
+<label>Contraseña:</label><br>
+<input type="password" id="pass"><br><br>
+<button id="btnPass">Entrar</button>
+
+<div id="reporte" class="hidden">
+  <label>Fecha para reporte:</label><br>
+  <input type="date" id="fecha"><br><br>
+  <button id="btnDesc">Descargar JSON</button>
+</div>
 
 <script>
-// Aquí está tu configuración de Firebase correcta para compat:
-const firebaseConfig = {
-  apiKey: "AIzaSyC3kWvBVWJ7s5AxHrM7rbn1Bl86VYPuHdg",
-  authDomain: "novedades-5257f.firebaseapp.com",
-  databaseURL: "https://novedades-5257f-default-rtdb.firebaseio.com",
-  projectId: "novedades-5257f",
-  storageBucket: "novedades-5257f.firebasestorage.app",
-  messagingSenderId: "562100000903",
-  appId: "1:562100000903:web:aba04199c4abb1ee37c022"
-};
-
-// Inicializa Firebase con compat:
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-const COLS = ['C','D','J','K','L','M','N','Q','S','T','V','W','AG','AH','AI'];
-let colNames = [], currentData = [], rawExcelData = null;
-
-function login() {
-  const type = document.getElementById('userType').value;
-  const code = document.getElementById('userCode').value.trim();
-  if (type === 'admin' && code === '123456') {
-    document.getElementById('loginSection').classList.add('hidden');
-    document.getElementById('adminSection').classList.remove('hidden');
-    document.getElementById('fechaHoy').textContent = new Date().toISOString().slice(0, 10);
-  } else if (type === 'tv' && code === 'TV1010') {
-    document.getElementById('loginSection').classList.add('hidden');
-    document.getElementById('tvSection').classList.remove('hidden');
-    document.getElementById('tvCodeShow').textContent = code;
-    loadDataForTV(code);
-  } else {
-    alert('Credenciales incorrectas');
-  }
-}
-
-function logout() { location.reload(); }
-
-document.getElementById('fileInput').addEventListener('change', function(evt) {
-  const file = evt.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const wb = XLSX.read(e.target.result, {type:'binary'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(ws, {header:1});
-    const headers = json[0];
-    colNames = COLS.map(c => headers[excelColToIndex(c)] || c);
-    currentData = json.slice(1).map(row => {
-      const obj = {};
-      COLS.forEach((c,i) => obj[colNames[i]] = row[excelColToIndex(c)]);
-      return obj;
+  // --- Ingresar datos ---
+  document.getElementById('ingreso').addEventListener('submit', async e => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    data.fecha = new Date().toISOString().slice(0,10); // solo fecha
+    await fetch('/ingresar', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(data)
     });
-    rawExcelData = { headers: colNames, rows: currentData };
-    document.getElementById('statusMsg').textContent = '✅ Archivo cargado. Presiona "Cargar".';
-    showTable(currentData);
-  };
-  reader.readAsBinaryString(file);
-});
-
-function uploadBase() {
-  if (!rawExcelData) return alert("Primero selecciona un archivo.");
-  const fecha = new Date().toISOString().slice(0,10);
-  console.log("Subiendo a Firebase:", rawExcelData); // Para debug
-  document.getElementById('statusMsg').textContent = '⏳ Cargando base en Firebase...';
-  db.ref('bases/' + fecha).set(rawExcelData)
-    .then(() => {
-      document.getElementById('statusMsg').textContent = '✅ Base cargada correctamente para ' + fecha;
-    })
-    .catch(err => {
-      document.getElementById('statusMsg').textContent = '❌ Error al cargar: ' + err.message;
-      console.error('Error firebase write:', err);
-    });
-}
-
-function loadDataForTV(tvCode) {
-  const today = new Date().toISOString().slice(0,10);
-  db.ref('bases/' + today).once('value', snap => {
-    if (!snap.exists()) return alert('No hay base para hoy.');
-    const { headers, rows } = snap.val();
-    colNames = headers;
-    currentData = rows.filter(row => row[colNames[10]] === tvCode);
-    showTable(currentData, true);
+    document.getElementById('msg1').textContent = '✅ Guardado';
+    e.target.reset();
   });
-}
 
-function showTable(data, useDropdownFilters = false) {
-  const tbl = document.getElementById('dataTable');
-  tbl.innerHTML = '';
-  const head = tbl.createTHead();
-  const hRow = head.insertRow();
-  colNames.forEach(name => { const th = document.createElement('th'); th.textContent = name; hRow.appendChild(th); });
-  const fRow = head.insertRow(); fRow.className = 'filter-row';
-  colNames.forEach((name, i) => {
-    const td = document.createElement('td');
-    if (useDropdownFilters) {
-      const select = document.createElement('select');
-      const values = [...new Set(data.map(r => r[name]).filter(Boolean))];
-      select.innerHTML = `<option value="">(Todos)</option>` + values.map(v => `<option>${v}</option>`).join('');
-      select.onchange = applySelectFilters;
-      td.appendChild(select);
+  // --- Mostrar reporte ---
+  document.getElementById('btnPass').onclick = () => {
+    if(document.getElementById('pass').value === 'reporte123'){
+      document.getElementById('reporte').classList.remove('hidden');
+    }else{
+      alert('Contraseña incorrecta');
     }
-    fRow.appendChild(td);
-  });
-  const tbody = tbl.createTBody(); tbody.id = 'tbody';
-  renderRows(data);
-  document.getElementById('tableSection').classList.remove('hidden');
-}
+  };
 
-function renderRows(data) {
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = '';
-  data.forEach(row => {
-    const tr = tbody.insertRow();
-    colNames.forEach(name => {
-      const td = tr.insertCell();
-      td.textContent = row[name] ?? '';
-    });
-  });
-}
-
-function applySelectFilters() {
-  const filters = [...document.querySelectorAll('.filter-row select')].map(s => s.value);
-  const filtered = currentData.filter(row => filters.every((f,i) => !f || row[colNames[i]] === f));
-  renderRows(filtered);
-}
-
-function excelColToIndex(col) {
-  let idx = 0;
-  for (let c of col) idx = idx * 26 + (c.charCodeAt(0) - 64);
-  return idx - 1;
-}
+  // --- Descargar JSON ---
+  document.getElementById('btnDesc').onclick = async () => {
+    const fecha = document.getElementById('fecha').value;
+    if(!fecha) return alert('Elegí fecha');
+    const res = await fetch('/reporte?fecha='+fecha);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'reporte_'+fecha+'.json';
+    a.click();
+  };
 </script>
-</body>
-</html>
