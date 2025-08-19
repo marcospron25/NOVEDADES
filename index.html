@@ -83,7 +83,7 @@
   document.getElementById('ingreso').addEventListener('submit', async e => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
-    data.fecha = new Date().toISOString().slice(0,10); // solo fecha
+    data.fecha = new Date().toISOString().slice(0,10);
     await fetch('/ingresar', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -102,10 +102,10 @@
     }
   };
 
-  // --- Descargar Excel ---
+  // --- Descargar EXCEL (nuevo) ---
   document.getElementById('btnDesc').onclick = () => {
     const fecha = document.getElementById('fecha').value;
     if(!fecha) return alert('Elegí fecha');
-    window.location.href = '/reporte?fecha='+fecha;
+    window.location.href = '/reporte?fecha=' + fecha; // ahora devuelve .xlsx
   };
 </script>
