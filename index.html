@@ -5,12 +5,18 @@
 <title>Rutero – Ingreso / Reporte</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-body{font-family:Arial;margin:30px;background:#f7f7f7}
-.radio-group{display:flex;gap:10px;margin:8px 0}
-.radio-group input[type=radio]{display:none}
-.radio-group label{padding:8px 16px;border:1px solid #000;cursor:pointer;border-radius:4px;font-weight:bold}
-.radio-group input[type=radio]:checked+label{background:#000;color:#fff}
-.hidden{display:none}
+body { font-family: Arial; margin: 30px; background: #f7f7f7 }
+.radio-group { display: flex; gap: 10px; margin: 8px 0 }
+.radio-group input[type=radio] { display: none }
+.radio-group label {
+  padding: 8px 16px; border: 1px solid #000; cursor: pointer;
+  border-radius: 4px; font-weight: bold;
+}
+.radio-group input[type=radio]:checked + label {
+  background: #000; color: #fff;
+}
+.hidden { display: none }
+#msg1 { margin-left: 10px; font-weight: bold; color: green; }
 </style>
 </head>
 
@@ -76,9 +82,9 @@ body{font-family:Arial;margin:30px;background:#f7f7f7}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
-  // Configuración de Firebase (pública, solo Realtime DB)
+  // Configuración de Firebase
   const firebaseConfig = {
-    apiKey: "AIzaSyD7o4v2t7Y4v2t7Y4v2t7Y4v2t7Y4v2t7Y4v2t7", // pública, no es secreto
+    apiKey: "AIzaSyD7o4v2t7Y4v2t7Y4v2t7Y4v2t7Y4v2t7Y4v2t7",
     authDomain: "rutero-f91fb.firebaseapp.com",
     databaseURL: "https://rutero-f91fb-default-rtdb.firebaseio.com",
     projectId: "rutero-f91fb",
@@ -86,40 +92,62 @@ body{font-family:Arial;margin:30px;background:#f7f7f7}
     messagingSenderId: "123456789",
     appId: "1:123456789:web:abcdef123456"
   };
+
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const PASSWORD = 'reporte123';
 
-  // Guardar
+  // Guardar formulario
   document.getElementById('ingreso').addEventListener('submit', async e => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
     data.fecha = new Date().toISOString().slice(0,10);
-    await db.ref('registros').push(data);
-    document.getElementById('msg1').textContent = '✅ Guardado';
-    e.target.reset();
+    
+    try {
+      await db.ref('registros').push(data);
+      console.log("Datos guardados:", data);
+      document.getElementById('msg1').textContent = '✅ Guardado';
+
+      // Borrar mensaje luego de 3 segundos
+      setTimeout(() => {
+        document.getElementById('msg1').textContent = '';
+      }, 3000);
+
+      e.target.reset();
+    } catch (err) {
+      console.error("Error al guardar:", err);
+      document.getElementById('msg1').textContent = '❌ Error al guardar';
+    }
   });
 
-  // Mostrar zona
+  // Borrar mensaje si cambia el código
+  document.querySelector('input[name="codigo"]').addEventListener('input', () => {
+    document.getElementById('msg1').textContent = '';
+  });
+
+  // Mostrar zona de reportes
   document.getElementById('btnPass').onclick = () => {
     if(document.getElementById('pass').value === PASSWORD){
       document.getElementById('reporte').classList.remove('hidden');
-    }else alert('Contraseña incorrecta');
+    } else {
+      alert('Contraseña incorrecta');
+    }
   };
 
   // Descargar Excel
   document.getElementById('btnDesc').onclick = async () => {
     const fecha = document.getElementById('fecha').value;
-    if(!fecha) return alert('Elegí fecha');
+    if (!fecha) return alert('Elegí fecha');
 
     const snap = await db.ref('registros')
                          .orderByChild('fecha')
                          .equalTo(fecha)
                          .once('value');
+
     const rows = [];
     snap.forEach(child => rows.push(child.val()));
 
-    if(!rows.length) return alert('Sin datos para la fecha seleccionada');
+    if (!rows.length) return alert('Sin datos para la fecha seleccionada');
 
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
