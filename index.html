@@ -1,46 +1,18 @@
-// ==========================
-// index.js  (Replit – guardar en Firestore y descargar Excel)
-// ==========================
-const express = require('express');
-const admin   = require('firebase-admin');
-const XLSX    = require('xlsx');          // <-- para Excel
-const fs      = require('fs');
-
-const app = express();
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
-// ---------- Conexión a Firebase ----------
-// Opción A: archivo físico
-admin.initializeApp({
-  credential: admin.credential.cert(require('./firebase-key.json'))
-});
-// Opción B: con Secrets (descomentar si usás Secrets)
-// const serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
-// admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-
-const db = admin.firestore();
-
-// ---------- Config ----------
-const PASSWORD = 'reporte123';   // contraseña para descargar reportes
-
-// ---------- Rutas ----------
-// Página principal
-app.get('/', (_, res) => {
-  res.send(`
 <!doctype html>
-<title>Rutero – Ingreso / Reporte</title>
-<meta charset="utf-8">
+<title>Ingreso / Reportes</title>
 <style>
-  body{font-family:Arial;margin:30px;background:#f7f7f7}
-  form,hr{margin-bottom:30px}
-  .radio-group{display:flex;gap:10px;margin:8px 0}
-  .radio-group input[type=radio]{display:none}
-  .radio-group label{
-    padding:8px 16px;border:1px solid #000;cursor:pointer;border-radius:4px;font-weight:bold
-  }
-  .radio-group input[type=radio]:checked + label{background:#000;color:#fff}
+  body{font-family:Arial;margin:30px}
   .hidden{display:none}
+  /* estilo para los radio custom */
+  .radio-group{display:flex;gap:10px;margin:8px 0}
+  .radio-group label{
+    padding:6px 14px;border:1px solid #000;cursor:pointer;
+    border-radius:4px;font-weight:bold
+  }
+  .radio-group input[type=radio]{display:none}
+  .radio-group input[type=radio]:checked + label{
+    background:#000;color:#fff
+  }
 </style>
 
 <h2>Ingresar datos</h2>
@@ -77,10 +49,11 @@ app.get('/', (_, res) => {
     <option>NO CONTACTO (TELEFONO INCORRECTO)</option>
   </select><br><br>
 
-  <label>¿Contestó?</label>
+  <label>¿Contesto?</label>
   <div class="radio-group">
     <input type="radio" id="si" name="contesto" value="Sí" required>
     <label for="si">Sí</label>
+
     <input type="radio" id="no" name="contesto" value="No">
     <label for="no">No</label>
   </div><br>
@@ -102,11 +75,11 @@ app.get('/', (_, res) => {
 <div id="reporte" class="hidden">
   <label>Fecha para reporte:</label><br>
   <input type="date" id="fecha"><br><br>
-  <button id="btnDesc">Descargar Excel</button>
+  <button id="btnDesc">Descargar JSON</button>
 </div>
 
 <script>
-  // Ingresar datos
+  // --- Ingresar datos ---
   document.getElementById('ingreso').addEventListener('submit', async e => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
@@ -120,55 +93,19 @@ app.get('/', (_, res) => {
     e.target.reset();
   });
 
-  // Mostrar selector de fecha
+  // --- Mostrar reporte ---
   document.getElementById('btnPass').onclick = () => {
-    if(document.getElementById('pass').value === '${PASSWORD}'){
+    if(document.getElementById('pass').value === 'reporte123'){
       document.getElementById('reporte').classList.remove('hidden');
     }else{
       alert('Contraseña incorrecta');
     }
   };
 
-  // Descargar Excel
+  // --- Descargar Excel ---
   document.getElementById('btnDesc').onclick = () => {
     const fecha = document.getElementById('fecha').value;
     if(!fecha) return alert('Elegí fecha');
     window.location.href = '/reporte?fecha='+fecha;
   };
 </script>
-  `);
-});
-
-// Guardar en Firestore
-app.post('/ingresar', async (req, res) => {
-  try {
-    await db.collection('registros').add(req.body);
-    res.sendStatus(200);
-  } catch (e) {
-    res.status(500).send('❌ Error al guardar');
-  }
-});
-
-// Descargar reporte en Excel (.xlsx)
-app.get('/reporte', async (req, res) => {
-  const fecha = req.query.fecha;
-  const snap = await db.collection('registros').where('fecha', '==', fecha).get();
-  const rows = snap.docs.map(d => d.data());
-
-  if (!rows.length) {
-    return res.status(404).send('Sin datos para la fecha seleccionada');
-  }
-
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
-
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-  res.setHeader('Content-Disposition', `attachment; filename="reporte_${fecha}.xlsx"`);
-  res.type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.send(buf);
-});
-
-// ---------- Iniciar servidor ----------
-app.listen(3000, () => console.log('Servidor corriendo en http://localhost:3000'));
